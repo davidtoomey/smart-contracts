@@ -1,5 +1,7 @@
 pragma solidity ^0.4.18;
 
+//work in progress
+
 import './Ownable.sol';
 
 contract EthWill is Ownable {
