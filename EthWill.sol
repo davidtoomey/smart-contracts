@@ -4,6 +4,15 @@ import './Ownable.sol';
 
 contract EthWill is Ownable {
 
+    mapping (address => bool) heirs;
+
+    uint64 public creationTime;
+    uint64 public timeStamp;
+    uint64 public coolDownEndTime;
+    uint public secretHashString;
+    uint public coolDownIndex;
+    uint public coolDownTimeLeft;
+
     function EthWill(address recipient1) public payable {
         require(msg.value > 0);
         heirs[recipient1] = true;
@@ -12,19 +21,6 @@ contract EthWill is Ownable {
         startClock();
     }
 
-    mapping (address => bool) heirs;
-
-    uint32 public myLuckyNumber;
-    uint64 public creationTime;
-    uint public coolDownEndTime;
-    uint public coolDownIndex;
-    uint public coolDownTimeLeft;
-    bool public readyToGo = false;
-
-    // uint32[1] public cooldowns = [
-    //     uint32(120 days)
-    // ];
-
     modifier onlyFamily() {
         require(msg.sender == owner || heirs[msg.sender]);
         _;
@@ -32,38 +28,46 @@ contract EthWill is Ownable {
 
     function startClock() internal onlyOwner {
         creationTime = uint64(now);
-        coolDownEndTime = uint64(creationTime + 120 days);
-        readyToGo = false;
+        uint64 coolDown = 30 seconds;
+        // using short cooldowns for testing purposes
+        coolDownEndTime = uint64(creationTime + coolDown);
     }
 
-    function setLuckyNumber(uint32 newNum) public onlyOwner {
-        myLuckyNumber = newNum;
+    function setSecretHash(string secretString) public onlyOwner {
+        require(secretHashString == 0);
+        secretHashString = uint(keccak256(keccak256(keccak256(secretString))));
     }
 
-    function luckyNumber(uint32 luckyNum) public onlyOwner {
-        readyOrNot();
-        require(readyToGo = true);
-        require(luckyNum == myLuckyNumber);
-        coolDownIndex++;
+    function checkSecretHash(string hashString) public onlyOwner returns (bool) {
+        checkTimeLeft();
+        require(coolDownTimeLeft < 10 seconds);
+        uint reHash = uint(keccak256(keccak256(keccak256(hashString))));
+        require(reHash == secretHashString);
         _triggerCooldown();
-    }
-
-    function readyOrNot() internal {
-        require(coolDownTimeLeft < 1000 days);
-        readyToGo = true;
+        coolDownIndex++;
+        return true;
     }
 
     function _triggerCooldown() internal {
-        // require(coolDownEndTime < 356 days);
-        uint addTime = coolDownEndTime + 120 days;
+        uint64 addTime = uint64(now + 60 seconds);
         coolDownEndTime = addTime;
-        coolDownTimeLeft = coolDownEndTime - now;
-        readyToGo = false;
+        timeStamp = uint64(now);
     }
 
-    function checkTimeLeft() public onlyFamily {
+    function checkTimeLeft() public onlyFamily returns (uint) {
         uint updatedTimeLeft = uint(coolDownEndTime - now);
         coolDownTimeLeft = updatedTimeLeft;
+        return coolDownTimeLeft;
+    }
+
+    function getCurrentTime() public view returns (uint64) {
+        uint64 currentTime = uint64(now);
+        return currentTime;
+    }
+
+    function timeSinceLastVisit() public view onlyFamily returns (uint64) {
+        uint64 lastVisited = uint64(now) - timeStamp;
+        return lastVisited;
     }
 
 }
